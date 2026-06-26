@@ -21,19 +21,32 @@ export interface PaginationParams {
 export interface LoginRequest {
   email: string;
   password: string;
+  tenantId?: string;
   rememberMe?: boolean;
 }
 
 export interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
   user: {
     id: string;
     email: string;
-    fullName: string;
+    name: string;
+    phone?: string;
+    avatar?: string;
     role: string;
-    permissions: string[];
     tenantId: string;
+    branchId?: string;
+    isActive: boolean;
+    lastLoginAt?: string;
+    twoFactorEnabled: boolean;
+    createdAt: string;
+    tenant?: { id: string; name: string; subdomain: string; isActive: boolean };
+    branch?: { id: string; nameAr: string; nameEn: string; code: string; isActive: boolean; isMain: boolean };
+    cashierProfile?: { id: string; isOnShift: boolean; shiftId?: string; permissions?: unknown };
+  };
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
   };
 }
 
@@ -51,6 +64,7 @@ export interface RefreshTokenRequest {
 export interface RefreshTokenResponse {
   accessToken: string;
   refreshToken: string;
+  expiresIn: number;
 }
 
 export interface ChangePasswordRequest {
@@ -67,18 +81,23 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
-export interface Setup2FARequest {
-  method: 'app' | 'sms' | 'email';
-}
-
 export interface Setup2FAResponse {
   secret: string;
-  qrCode: string;
-  backupCodes: string[];
+  otpauthUrl: string;
+  qrCodeDataUrl: string;
 }
 
 export interface Verify2FARequest {
-  code: string;
+  token: string;
+}
+
+export interface Verify2FAResponse {
+  enabled: boolean;
+  recoveryCodes: string[];
+}
+
+export interface VerifyEmailRequest {
+  token: string;
 }
 
 export interface UserResponse {
@@ -1106,7 +1125,11 @@ export interface ReportRequest {
   customerId?: string;
   supplierId?: string;
   userId?: string;
+  cashierId?: string;
+  shiftId?: string;
   groupBy?: string;
+  sortBy?: string;
+  limit?: number;
   format?: 'pdf' | 'excel' | 'csv';
 }
 
@@ -1472,16 +1495,18 @@ export interface UploadResponse {
 
 const auth = {
   login: (data: LoginRequest) => post<LoginResponse>('/auth/login', data),
-  register: (data: RegisterRequest) => post<LoginResponse>('/auth/register', data),
+  register: (data: RegisterRequest) => post<unknown>('/auth/register', data),
   refreshToken: (data: RefreshTokenRequest) => post<RefreshTokenResponse>('/auth/refresh', data),
-  logout: () => post<void>('/auth/logout'),
-  getProfile: () => get<UserResponse>('/auth/profile'),
+  logout: (refreshToken: string) => post<void>('/auth/logout', { refreshToken }),
+  getProfile: () => get<unknown>('/auth/me'),
   changePassword: (data: ChangePasswordRequest) => post<void>('/auth/change-password', data),
   forgotPassword: (data: ForgotPasswordRequest) => post<void>('/auth/forgot-password', data),
   resetPassword: (data: ResetPasswordRequest) => post<void>('/auth/reset-password', data),
-  setup2FA: (data: Setup2FARequest) => post<Setup2FAResponse>('/auth/2fa/setup', data),
-  verify2FA: (data: Verify2FARequest) => post<void>('/auth/2fa/verify', data),
+  setup2FA: () => post<Setup2FAResponse>('/auth/2fa/setup', {}),
+  verify2FA: (data: Verify2FARequest) => post<Verify2FAResponse>('/auth/2fa/verify', data),
   disable2FA: () => post<void>('/auth/2fa/disable'),
+  sendVerificationEmail: () => post<void>('/auth/send-verification-email'),
+  verifyEmail: (data: VerifyEmailRequest) => post<void>('/auth/verify-email', data),
 };
 
 // ─── Users Endpoints ────────────────────────────────────────────────
@@ -1559,7 +1584,7 @@ const products = {
   createProduct: (data: CreateProductRequest) => post<ProductResponse>('/products', data),
   updateProduct: (id: string, data: UpdateProductRequest) => put<ProductResponse>(`/products/${id}`, data),
   deleteProduct: (id: string) => del<void>(`/products/${id}`),
-  searchProducts: (query: string, params?: PaginationParams) => get<PaginatedResponse<ProductResponse>>('/products/search', { params: { ...params, q: query } }),
+  searchProducts: (query: string, params?: PaginationParams) => get<PaginatedResponse<ProductResponse>>(`/products/search/${encodeURIComponent(query)}`, { params }),
   toggleActive: (id: string) => patch<ProductResponse>(`/products/${id}/toggle-active`),
   bulkImport: (data: BulkImportRequest) => post<{ success: number; failed: number; errors?: string[] }>('/products/bulk-import', data),
 };
@@ -1567,7 +1592,7 @@ const products = {
 // ─── Categories Endpoints ───────────────────────────────────────────
 
 const categories = {
-  getCategories: (params?: PaginationParams) => get<PaginatedResponse<CategoryResponse>>('/categories', { params }),
+  getCategories: (params?: PaginationParams) => get<CategoryResponse[]>('/categories', { params }),
   getCategory: (id: string) => get<CategoryResponse>(`/categories/${id}`),
   createCategory: (data: CreateCategoryRequest) => post<CategoryResponse>('/categories', data),
   updateCategory: (id: string, data: UpdateCategoryRequest) => put<CategoryResponse>(`/categories/${id}`, data),
@@ -1586,7 +1611,7 @@ const variants = {
 // ─── Price Lists Endpoints ──────────────────────────────────────────
 
 const priceLists = {
-  getPriceLists: (params?: PaginationParams) => get<PaginatedResponse<PriceListResponse>>('/price-lists', { params }),
+  getPriceLists: (params?: PaginationParams) => get<PriceListResponse[]>('/price-lists', { params }),
   getPriceList: (id: string) => get<PriceListResponse>(`/price-lists/${id}`),
   createPriceList: (data: CreatePriceListRequest) => post<PriceListResponse>('/price-lists', data),
   updatePriceList: (id: string, data: UpdatePriceListRequest) => put<PriceListResponse>(`/price-lists/${id}`, data),
@@ -1602,7 +1627,7 @@ const inventory = {
   adjustStock: (data: AdjustStockRequest) => post<StockResponse>('/inventory/adjust', data),
   transferStock: (data: TransferStockRequest) => post<{ from: StockResponse; to: StockResponse }>('/inventory/transfer', data),
   getMovements: (params?: PaginationParams) => get<PaginatedResponse<StockMovement>>('/inventory/movements', { params }),
-  getAlerts: (params?: PaginationParams) => get<PaginatedResponse<StockAlert>>('/inventory/alerts', { params }),
+  getAlerts: () => get<StockAlert[]>('/inventory/alerts'),
 };
 
 // ─── Customers Endpoints ────────────────────────────────────────────
@@ -1707,18 +1732,18 @@ const promotions = {
 // ─── Reports Endpoints ──────────────────────────────────────────────
 
 const reports = {
-  salesReport: (params?: ReportRequest) => post<unknown>('/reports/sales', params || {}),
-  profitLossReport: (params?: ReportRequest) => post<unknown>('/reports/profit-loss', params || {}),
-  inventoryStatusReport: (params?: ReportRequest) => post<unknown>('/reports/inventory-status', params || {}),
-  inventoryMovementsReport: (params?: ReportRequest) => post<unknown>('/reports/inventory-movements', params || {}),
-  topProductsReport: (params?: ReportRequest) => post<unknown>('/reports/top-products', params || {}),
-  slowMovingReport: (params?: ReportRequest) => post<unknown>('/reports/slow-moving', params || {}),
-  cashierPerformanceReport: (params?: ReportRequest) => post<unknown>('/reports/cashier-performance', params || {}),
-  customerStatement: (customerId: string, params?: ReportRequest) => post<unknown>(`/reports/customer-statement/${customerId}`, params || {}),
-  supplierStatement: (supplierId: string, params?: ReportRequest) => post<unknown>(`/reports/supplier-statement/${supplierId}`, params || {}),
-  taxReport: (params?: ReportRequest) => post<unknown>('/reports/tax', params || {}),
-  shiftReport: (shiftId: string) => get<unknown>(`/reports/shift/${shiftId}`),
-  dailySummary: (params?: ReportRequest) => post<unknown>('/reports/daily-summary', params || {}),
+  salesReport: (params?: ReportRequest) => get<unknown>('/reports/sales', { params }),
+  profitLossReport: (params?: ReportRequest) => get<unknown>('/reports/profit-loss', { params }),
+  inventoryStatusReport: (params?: ReportRequest) => get<unknown>('/reports/inventory-status', { params }),
+  inventoryMovementsReport: (params?: ReportRequest) => get<unknown>('/reports/inventory-movements', { params }),
+  topProductsReport: (params?: ReportRequest) => get<unknown>('/reports/top-products', { params }),
+  slowMovingReport: (params?: ReportRequest) => get<unknown>('/reports/slow-moving', { params }),
+  cashierPerformanceReport: (params?: ReportRequest) => get<unknown>('/reports/cashier-performance', { params }),
+  customerStatement: (customerId: string, params?: ReportRequest) => get<unknown>(`/reports/customer-statement`, { params: { ...params, customerId } }),
+  supplierStatement: (supplierId: string, params?: ReportRequest) => get<unknown>(`/reports/supplier-statement`, { params: { ...params, supplierId } }),
+  taxReport: (params?: ReportRequest) => get<unknown>('/reports/tax', { params }),
+  shiftReport: (shiftId: string) => get<unknown>(`/reports/shift`, { params: { shiftId } }),
+  dailySummary: (params?: ReportRequest) => get<unknown>('/reports/daily-summary', { params }),
 };
 
 // ─── Shifts Endpoints ───────────────────────────────────────────────
@@ -1754,7 +1779,7 @@ const revenues = {
 // ─── Tax Configs Endpoints ──────────────────────────────────────────
 
 const taxConfigs = {
-  getTaxConfigs: (params?: PaginationParams) => get<PaginatedResponse<TaxConfigResponse>>('/tax-configs', { params }),
+  getTaxConfigs: (params?: PaginationParams) => get<{ data: TaxConfigResponse[]; total: number; defaultConfig: TaxConfigResponse | null }>('/tax-configs', { params }),
   createTaxConfig: (data: CreateTaxConfigRequest) => post<TaxConfigResponse>('/tax-configs', data),
   updateTaxConfig: (id: string, data: UpdateTaxConfigRequest) => put<TaxConfigResponse>(`/tax-configs/${id}`, data),
   deleteTaxConfig: (id: string) => del<void>(`/tax-configs/${id}`),
@@ -1810,7 +1835,7 @@ const upload = {
 // ─── API Keys Endpoints ─────────────────────────────────────────────
 
 const apiKeys = {
-  getApiKeys: (params?: PaginationParams) => get<PaginatedResponse<ApiKeyResponse>>('/api-keys', { params }),
+  getApiKeys: (params?: PaginationParams) => get<{ data: ApiKeyResponse[]; total: number }>('/api-keys', { params }),
   createApiKey: (data: CreateApiKeyRequest) => post<ApiKeyCreatedResponse>('/api-keys', data),
   updateApiKey: (id: string, data: UpdateApiKeyRequest) => put<ApiKeyResponse>(`/api-keys/${id}`, data),
   deleteApiKey: (id: string) => del<void>(`/api-keys/${id}`),
@@ -1821,7 +1846,7 @@ const apiKeys = {
 // ─── Webhooks Endpoints ─────────────────────────────────────────────
 
 const webhooks = {
-  getWebhooks: (params?: PaginationParams) => get<PaginatedResponse<WebhookResponse>>('/webhooks', { params }),
+  getWebhooks: (params?: PaginationParams) => get<{ data: WebhookResponse[]; total: number }>('/webhooks', { params }),
   createWebhook: (data: CreateWebhookRequest) => post<WebhookResponse>('/webhooks', data),
   updateWebhook: (id: string, data: UpdateWebhookRequest) => put<WebhookResponse>(`/webhooks/${id}`, data),
   deleteWebhook: (id: string) => del<void>(`/webhooks/${id}`),

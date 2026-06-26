@@ -37,15 +37,14 @@ function processQueue(error: unknown, token: string | null = null) {
 
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const { accessToken } = useAuthStore.getState();
+    const { accessToken, user } = useAuthStore.getState();
 
     if (accessToken && config.headers) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
-    const { tenant } = useAuthStore.getState() as unknown as { tenant: { id: string } | null };
-    if (tenant?.id && config.headers) {
-      config.headers['x-tenant-id'] = tenant.id;
+    if (user?.tenantId && config.headers) {
+      config.headers['x-tenant-id'] = user.tenantId;
     }
 
     return config;
@@ -57,6 +56,14 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      'success' in response.data &&
+      'data' in response.data
+    ) {
+      response.data = (response.data as { data: unknown }).data;
+    }
     return response;
   },
   async (error: AxiosError) => {
@@ -92,14 +99,15 @@ apiClient.interceptors.response.use(
           refreshToken,
         });
 
-        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = response.data;
+        const responseBody = response.data as { data?: { accessToken: string; refreshToken: string } } | { accessToken: string; refreshToken: string };
+        const tokenData = (responseBody as { data?: { accessToken: string; refreshToken: string } }).data ?? responseBody as { accessToken: string; refreshToken: string };
 
-        setTokens(newAccessToken, newRefreshToken || refreshToken);
+        setTokens(tokenData.accessToken, tokenData.refreshToken || refreshToken);
 
-        processQueue(null, newAccessToken);
+        processQueue(null, tokenData.accessToken);
 
         if (originalRequest.headers) {
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          originalRequest.headers.Authorization = `Bearer ${tokenData.accessToken}`;
         }
 
         return apiClient(originalRequest);

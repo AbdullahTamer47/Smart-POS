@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   AppBar,
@@ -34,6 +35,8 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeContext } from '@/theme/ThemeProvider';
 import { useAppStore } from '@/stores/appStore';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
+import api from '@/api/endpoints';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -50,6 +53,15 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null);
+
+  const { data: unreadData } = useQuery<{ count: number }>({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: () => api.notifications.getUnreadCount(),
+    refetchInterval: 30000,
+    staleTime: 15000,
+  });
+
+  const unreadCount = unreadData?.count ?? 0;
 
   const isDark = mode === 'dark';
 
@@ -137,7 +149,7 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
               size="small"
               onClick={(e) => setNotifAnchor(e.currentTarget)}
             >
-              <Badge badgeContent={3} color="error">
+              <Badge badgeContent={unreadCount} color="error" max={99}>
                 <Notifications fontSize="small" />
               </Badge>
             </IconButton>
@@ -213,7 +225,7 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
             <ListItemIcon><Settings fontSize="small" /></ListItemIcon>
             <ListItemText>{t('nav.settings') || 'Settings'}</ListItemText>
           </MenuItem>
-          <MenuItem onClick={() => { setAnchorEl(null); navigate('/settings/users'); }}>
+          <MenuItem onClick={() => { setAnchorEl(null); navigate('/profile'); }}>
             <ListItemIcon><Person fontSize="small" /></ListItemIcon>
             <ListItemText>{t('nav.profile') || 'Profile'}</ListItemText>
           </MenuItem>
@@ -223,6 +235,8 @@ export function Header({ onMenuClick, isMobile }: HeaderProps) {
             <ListItemText>{t('auth.logout') || 'Logout'}</ListItemText>
           </MenuItem>
         </Menu>
+
+        <NotificationDropdown anchorEl={notifAnchor} onClose={() => setNotifAnchor(null)} />
       </Toolbar>
     </AppBar>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -26,6 +26,7 @@ import {
   Translate,
   Storefront,
 } from '@mui/icons-material';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '@/stores/authStore';
 import { useThemeContext } from '@/theme/ThemeProvider';
 import api from '@/api/endpoints';
@@ -87,17 +88,20 @@ export default function LoginPage() {
         const userData = {
           id: response.user.id,
           email: response.user.email,
-          fullName: response.user.fullName,
+          fullName: response.user.name,
           role: response.user.role,
-          permissions: response.user.permissions || [],
+          permissions: [],
           tenantId: response.user.tenantId,
-          isActive: true,
+          branchId: response.user.branchId,
+          isActive: response.user.isActive,
         };
-        login(userData, response.accessToken, response.refreshToken);
+        login(userData, response.tokens.accessToken, response.tokens.refreshToken);
+        toast.success(t('auth.loginSuccess') || 'Welcome back!');
         navigate(from, { replace: true });
-      } catch (err: any) {
-        const msg = err?.response?.data?.message || err?.message || t('auth.invalidCredentials');
+      } catch (err: unknown) {
+        const msg = (err as Error)?.message || t('auth.invalidCredentials');
         setError(msg);
+        toast.error(msg);
       } finally {
         setIsLoading(false);
       }
@@ -356,11 +360,14 @@ export default function LoginPage() {
                     }
                   />
                   <Typography
+                    component={Link}
+                    to="/forgot-password"
                     variant="body2"
                     sx={{
                       color: 'primary.main',
                       cursor: 'pointer',
                       fontWeight: 500,
+                      textDecoration: 'none',
                       '&:hover': { textDecoration: 'underline' },
                     }}
                   >

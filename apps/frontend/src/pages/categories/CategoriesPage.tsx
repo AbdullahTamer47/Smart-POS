@@ -42,7 +42,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import api, { type CategoryResponse, type PaginatedResponse } from '@/api/endpoints';
+import api, { type CategoryResponse } from '@/api/endpoints';
 
 const categorySchema = z.object({
   nameAr: z.string().min(1, 'Required'),
@@ -196,14 +196,14 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<CategoryResponse | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CategoryResponse | null>(null);
 
-  const { data, isLoading, isError, error, refetch } = useQuery<PaginatedResponse<CategoryResponse>>({
+  const { data, isLoading, isError, error, refetch } = useQuery<CategoryResponse[]>({
     queryKey: ['categories', 'tree'],
     queryFn: () => api.categories.getCategories({ limit: 1000 }),
   });
 
   const tree = useMemo(() => {
-    if (!data?.data) return [];
-    return buildCategoryTree(data.data);
+    if (!data) return [];
+    return buildCategoryTree(data);
   }, [data]);
 
   const {
@@ -236,6 +236,7 @@ export default function CategoriesPage() {
         isActive: formData.isActive,
         sortOrder: formData.sortOrder,
       }),
+    meta: { successMsg: t('categories.created') || 'Category created' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       handleCloseDialog();
@@ -253,6 +254,7 @@ export default function CategoriesPage() {
         isActive: formData.isActive,
         sortOrder: formData.sortOrder,
       }),
+    meta: { successMsg: t('categories.updated') || 'Category updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       handleCloseDialog();
@@ -261,6 +263,7 @@ export default function CategoriesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.categories.deleteCategory(id),
+    meta: { successMsg: t('categories.deleted') || 'Category deleted' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       setDeleteTarget(null);
@@ -270,6 +273,7 @@ export default function CategoriesPage() {
   const toggleMutation = useMutation({
     mutationFn: (id: string) =>
       api.categories.updateCategory(id, {}),
+    meta: { successMsg: t('categories.updated') || 'Category updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
     },
@@ -325,7 +329,7 @@ export default function CategoriesPage() {
   };
 
   const handleToggleActive = (id: string) => {
-    const cat = data?.data?.find((c) => c.id === id);
+    const cat = data?.find((c) => c.id === id);
     if (cat) {
       toggleMutation.mutate(id);
     }
@@ -450,9 +454,9 @@ export default function CategoriesPage() {
                 control={control}
                 render={({ field }) => (
                   <Autocomplete
-                    value={data?.data?.find((c) => c.id === field.value) || null}
+                    value={data?.find((c) => c.id === field.value) || null}
                     onChange={(_, val) => field.onChange(val?.id || null)}
-                    options={(data?.data || []).filter(
+                    options={(data || []).filter(
                       (c) => !editingCategory || c.id !== editingCategory.id
                     )}
                     getOptionLabel={(opt) => opt.nameAr || opt.nameEn || opt.name}

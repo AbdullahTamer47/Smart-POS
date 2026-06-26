@@ -112,7 +112,7 @@ export default function AccountingPage() {
     enabled: tab === 2,
   });
 
-  const { data: taxData, isLoading: taxLoading } = useQuery<PaginatedResponse<TaxConfigResponse>>({
+  const { data: taxData, isLoading: taxLoading } = useQuery<{ data: TaxConfigResponse[]; total: number; defaultConfig: TaxConfigResponse | null }>({
     queryKey: ['taxConfigs', page, rowsPerPage],
     queryFn: () => api.taxConfigs.getTaxConfigs({ page: page + 1, limit: rowsPerPage }),
     enabled: tab === 3,

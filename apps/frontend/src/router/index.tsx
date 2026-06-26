@@ -5,6 +5,9 @@ import { RoleGuard } from './RoleGuard';
 import { UserRole } from '@smartpos/types';
 
 const LoginPage = React.lazy(() => import('@/pages/auth/LoginPage'));
+const ForgotPasswordPage = React.lazy(() => import('@/pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = React.lazy(() => import('@/pages/auth/ResetPasswordPage'));
+const VerifyEmailPage = React.lazy(() => import('@/pages/auth/VerifyEmailPage'));
 
 const DashboardLayout = React.lazy(() => import('@/layouts/DashboardLayout'));
 const DashboardPage = React.lazy(() => import('@/pages/dashboard/DashboardPage'));
@@ -34,12 +37,25 @@ const TenantsPage = React.lazy(() => import('@/pages/admin/TenantsPage'));
 const PlansPage = React.lazy(() => import('@/pages/admin/PlansPage'));
 const AdminTicketsPage = React.lazy(() => import('@/pages/admin/AdminTicketsPage'));
 const AdminSettingsPage = React.lazy(() => import('@/pages/admin/AdminSettingsPage'));
+const ProfilePage = React.lazy(() => import('@/pages/profile/ProfilePage'));
 const NotFoundPage = React.lazy(() => import('@/pages/NotFoundPage'));
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/forgot-password',
+    element: <ForgotPasswordPage />,
+  },
+  {
+    path: '/reset-password',
+    element: <ResetPasswordPage />,
+  },
+  {
+    path: '/verify-email',
+    element: <VerifyEmailPage />,
   },
   {
     path: '/',
@@ -139,6 +155,10 @@ export const router = createBrowserRouter([
           {
             path: 'support',
             element: <SupportPage />,
+          },
+          {
+            path: 'profile',
+            element: <ProfilePage />,
           },
           {
             path: 'admin',

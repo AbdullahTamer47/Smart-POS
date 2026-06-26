@@ -41,6 +41,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { VirtuosoGrid } from 'react-virtuoso';
+import toast from 'react-hot-toast';
 import { usePOSStore, type Product, type Customer, type Coupon, type GiftCard, type Payment } from '@/stores/posStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useAppStore } from '@/stores/appStore';
@@ -369,9 +370,9 @@ export default function POSPage() {
   });
 
   const categories = useMemo(() => {
-    const data = categoriesData as { data: Array<Record<string, unknown>> } | undefined;
-    if (!data?.data) return [];
-    return data.data.map((c: Record<string, unknown>) => ({
+    const data = categoriesData as Array<Record<string, unknown>> | undefined;
+    if (!data) return [];
+    return data.map((c: Record<string, unknown>) => ({
       id: c.id as string,
       name: (c.nameAr as string) || (c.name as string) || '',
       productCount: (c.productCount as number) ?? 0,

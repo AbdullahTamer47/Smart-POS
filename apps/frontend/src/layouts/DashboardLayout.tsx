@@ -39,6 +39,8 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import { UserRole } from '@smartpos/types';
 import { Header } from './Header';
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary';
+import { SubscriptionBanner } from '@/components/SubscriptionBanner';
 
 const DRAWER_WIDTH = 260;
 const DRAWER_COLLAPSED = 72;
@@ -307,6 +309,7 @@ export default function DashboardLayout() {
           onMenuClick={() => setMobileOpen(true)}
           isMobile={isMobile}
         />
+        <SubscriptionBanner />
         <Box
           sx={{
             flex: 1,
@@ -319,12 +322,12 @@ export default function DashboardLayout() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <Outlet />
+            <RouteErrorBoundary resetKey={location.pathname}>
+              <Outlet />
+            </RouteErrorBoundary>
           </motion.div>
         </Box>
       </Box>
     </Box>
   );
 }
-
-import { Typography as MuiTypography } from '@mui/material';

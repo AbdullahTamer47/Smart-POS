@@ -84,23 +84,46 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout: () => {
-        set({
-          user: null,
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          isLoading: false,
-          isInitialized: true,
-        });
-
-        try {
-          localStorage.removeItem('smart-pos-auth');
-        } catch {
-          // localStorage unavailable
-        }
-
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+        const { refreshToken } = get();
+        if (refreshToken) {
+          import('@/api/endpoints')
+            .then(({ api }) => api.auth.logout(refreshToken))
+            .catch(() => {})
+            .finally(() => {
+              set({
+                user: null,
+                accessToken: null,
+                refreshToken: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isInitialized: true,
+              });
+              try {
+                localStorage.removeItem('smart-pos-auth');
+              } catch {
+                // localStorage unavailable
+              }
+              if (typeof window !== 'undefined') {
+                window.location.href = '/login';
+              }
+            });
+        } else {
+          set({
+            user: null,
+            accessToken: null,
+            refreshToken: null,
+            isAuthenticated: false,
+            isLoading: false,
+            isInitialized: true,
+          });
+          try {
+            localStorage.removeItem('smart-pos-auth');
+          } catch {
+            // localStorage unavailable
+          }
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
         }
       },
 
@@ -156,44 +179,103 @@ export const useAuthStore = create<AuthStore>()(
           }
 
           try {
-            const VITE_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-            const response = await fetch(`${VITE_API_URL}/auth/refresh`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refreshToken }),
+            const { api } = await import('@/api/endpoints');
+            const tokenData = await api.auth.refreshToken({ refreshToken });
+            set({
+              accessToken: tokenData.accessToken,
+              refreshToken: tokenData.refreshToken || refreshToken,
+              isAuthenticated: true,
+              isLoading: false,
+              isInitialized: true,
             });
 
-            if (response.ok) {
-              const data = await response.json();
+            try {
+              const profile = await api.auth.getProfile() as {
+                id: string;
+                email: string;
+                name: string;
+                role: string;
+                tenantId: string;
+                branchId?: string;
+                isActive: boolean;
+                lastLoginAt?: string;
+              };
               set({
-                accessToken: data.accessToken,
-                refreshToken: data.refreshToken || refreshToken,
-                isAuthenticated: true,
-                isLoading: false,
-                isInitialized: true,
+                user: {
+                  id: profile.id,
+                  email: profile.email,
+                  fullName: profile.name,
+                  role: profile.role,
+                  permissions: [],
+                  tenantId: profile.tenantId,
+                  branchId: profile.branchId,
+                  isActive: profile.isActive,
+                  lastLogin: profile.lastLoginAt,
+                },
               });
-              return;
+            } catch {
+              // Profile fetch failed but tokens are valid
             }
+            return;
           } catch {
-            // Refresh failed, continue to mark as unauthenticated
+            set({
+              isAuthenticated: false,
+              isLoading: false,
+              isInitialized: true,
+              user: null,
+              accessToken: null,
+              refreshToken: null,
+            });
+            return;
           }
-
-          set({
-            isAuthenticated: false,
-            isLoading: false,
-            isInitialized: true,
-            user: null,
-            accessToken: null,
-            refreshToken: null,
-          });
-          return;
         }
 
-        set({
-          isAuthenticated: true,
-          isLoading: false,
-          isInitialized: true,
-        });
+        if (!state.user) {
+          try {
+            const { api } = await import('@/api/endpoints');
+            const profile = await api.auth.getProfile() as {
+              id: string;
+              email: string;
+              name: string;
+              role: string;
+              tenantId: string;
+              branchId?: string;
+              isActive: boolean;
+              lastLoginAt?: string;
+            };
+            set({
+              user: {
+                id: profile.id,
+                email: profile.email,
+                fullName: profile.name,
+                role: profile.role,
+                permissions: [],
+                tenantId: profile.tenantId,
+                branchId: profile.branchId,
+                isActive: profile.isActive,
+                lastLogin: profile.lastLoginAt,
+              },
+              isAuthenticated: true,
+              isLoading: false,
+              isInitialized: true,
+            });
+          } catch {
+            set({
+              isAuthenticated: false,
+              isLoading: false,
+              isInitialized: true,
+              user: null,
+              accessToken: null,
+              refreshToken: null,
+            });
+          }
+        } else {
+          set({
+            isAuthenticated: true,
+            isLoading: false,
+            isInitialized: true,
+          });
+        }
       },
     }),
     {

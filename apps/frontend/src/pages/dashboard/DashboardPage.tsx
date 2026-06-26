@@ -15,17 +15,18 @@ import {
   useTheme,
   alpha,
   Tooltip,
+  Alert,
 } from '@mui/material';
 import {
   TrendingUp,
   TrendingDown,
   Receipt,
-  People,
   Inventory as InventoryIcon,
   AttachMoney,
   Add,
   Assessment,
   Refresh,
+  Warning,
 } from '@mui/icons-material';
 import {
   LineChart,
@@ -170,46 +171,99 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
+  const today = new Date().toISOString().split('T')[0];
+
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
-    queryFn: () => api.reports.salesReport({
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date().toISOString().split('T')[0],
-    }).then((d: any) => ({
-      todaySales: d?.totalSales || 0,
-      salesTrend: d?.trend || 0,
-      todayProfit: d?.totalProfit || 0,
-      profitTrend: d?.profitTrend || 0,
-      activeCustomers: d?.customerCount || 0,
-      customersTrend: d?.customerTrend || 0,
-      lowStockItems: d?.lowStockCount || 0,
-    })),
+    queryFn: () =>
+      api.reports
+        .salesReport({ startDate: today, endDate: today, groupBy: 'day' })
+        .then((d) => {
+          const r = d as {
+            summary?: { totalRevenue?: number; totalSales?: number };
+          };
+          return {
+            todaySales: r?.summary?.totalRevenue ?? 0,
+            todayOrders: r?.summary?.totalSales ?? 0,
+          };
+        }),
     staleTime: 30000,
+  });
+
+  const { data: plData } = useQuery({
+    queryKey: ['dashboard-profit'],
+    queryFn: () =>
+      api.reports
+        .profitLossReport({ startDate: today, endDate: today })
+        .then((d) => {
+          const r = d as { netProfit?: number };
+          return { todayProfit: r?.netProfit ?? 0 };
+        }),
+    staleTime: 30000,
+  });
+
+  const { data: inventoryData } = useQuery({
+    queryKey: ['dashboard-inventory'],
+    queryFn: () =>
+      api.reports
+        .inventoryStatusReport({})
+        .then((d) => {
+          const r = d as { lowStockCount?: number; outOfStockCount?: number };
+          return {
+            lowStockItems: r?.lowStockCount ?? 0,
+            outOfStockItems: r?.outOfStockCount ?? 0,
+          };
+        }),
+    staleTime: 60000,
   });
 
   const { data: salesData } = useQuery({
     queryKey: ['dashboard-sales-chart'],
-    queryFn: () => api.reports.salesReport().then((d: any) => d?.dailyBreakdown || []),
+    queryFn: () =>
+      api.reports
+        .salesReport({ groupBy: 'day' })
+        .then((d) => {
+          const r = d as {
+            grouped?: Array<{ period: string; count: number; revenue: number }>;
+          };
+          return r?.grouped ?? [];
+        }),
     staleTime: 60000,
   });
 
   const { data: topProducts } = useQuery({
     queryKey: ['dashboard-top-products'],
-    queryFn: () => api.reports.topProductsReport().then((d: any) => d?.data || []),
+    queryFn: () =>
+      api.reports
+        .topProductsReport({ limit: 5 })
+        .then((d) => {
+          const r = d as {
+            products?: Array<{
+              nameAr?: string;
+              nameEn?: string;
+              revenue?: number;
+              quantity?: number;
+            }>;
+          };
+          return r?.products ?? [];
+        }),
     staleTime: 60000,
   });
 
   const { data: recentInvoices } = useQuery({
     queryKey: ['dashboard-recent-invoices'],
-    queryFn: () => api.invoices.getInvoices({ page: 1, limit: 5 }).then((d: any) => d?.data || []),
+    queryFn: () =>
+      api.invoices
+        .getInvoices({ page: 1, limit: 5 })
+        .then((d) => d?.data ?? []),
     staleTime: 30000,
   });
 
   const chartData = useMemo(() => {
     if (!salesData) return [];
     return (salesData as any[]).map((d: any) => ({
-      name: d.date || d.label || '',
-      sales: d.total || d.sales || 0,
+      name: d.period || d.date || d.label || '',
+      sales: d.revenue || d.total || d.sales || 0,
       orders: d.count || d.orders || 0,
     }));
   }, [salesData]);
@@ -217,8 +271,8 @@ export default function DashboardPage() {
   const productData = useMemo(() => {
     if (!topProducts) return [];
     return (topProducts as any[]).slice(0, 5).map((p: any) => ({
-      name: p.name || p.productName || '',
-      sales: p.total || p.sales || 0,
+      name: p.nameAr || p.nameEn || p.name || p.productName || '',
+      sales: p.revenue || p.total || p.sales || 0,
       quantity: p.quantity || 0,
     }));
   }, [topProducts]);
@@ -263,8 +317,6 @@ export default function DashboardPage() {
             icon={<Receipt />}
             label={t('dashboard.todaySales') || "Today's Sales"}
             value={stats?.todaySales ?? 0}
-            trend={stats?.salesTrend}
-            trendLabel={t('dashboard.vsYesterday') || 'vs yesterday'}
             loading={isLoading}
             color={theme.palette.primary.main}
           />
@@ -273,18 +325,16 @@ export default function DashboardPage() {
           <StatCard
             icon={<AttachMoney />}
             label={t('dashboard.todayProfit') || "Today's Profit"}
-            value={stats?.todayProfit ?? 0}
-            trend={stats?.profitTrend}
-            loading={isLoading}
+            value={plData?.todayProfit ?? 0}
+            loading={false}
             color={theme.palette.success.main}
           />
         </Grid>
         <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
           <StatCard
-            icon={<People />}
-            label={t('dashboard.activeCustomers') || 'Active Customers'}
-            value={stats?.activeCustomers ?? 0}
-            trend={stats?.customersTrend}
+            icon={<Assessment />}
+            label={t('dashboard.todayOrders') || "Today's Orders"}
+            value={stats?.todayOrders ?? 0}
             loading={isLoading}
             color={theme.palette.info.main}
           />
@@ -293,12 +343,35 @@ export default function DashboardPage() {
           <StatCard
             icon={<InventoryIcon />}
             label={t('dashboard.lowStock') || 'Low Stock Items'}
-            value={stats?.lowStockItems ?? 0}
-            loading={isLoading}
+            value={inventoryData?.lowStockItems ?? 0}
+            loading={false}
             color={theme.palette.warning.main}
           />
         </Grid>
       </Grid>
+
+      {inventoryData && inventoryData.lowStockItems > 0 && (
+        <motion.div variants={cardVariants}>
+          <Alert
+            severity="warning"
+            icon={<Warning />}
+            sx={{
+              mb: 3,
+              borderRadius: 3,
+              cursor: 'pointer',
+              '&:hover': { opacity: 0.9 },
+            }}
+            onClick={() => navigate('/inventory')}
+          >
+            <Typography variant="body2" fontWeight={600}>
+              {inventoryData.lowStockItems} {t('dashboard.lowStockWarning') || 'product(s) are running low on stock'}
+              {inventoryData.outOfStockItems > 0 &&
+                ` — ${inventoryData.outOfStockItems} ${t('dashboard.outOfStock') || 'out of stock'}`}
+              . {t('dashboard.clickToReview') || 'Click to review'}
+            </Typography>
+          </Alert>
+        </motion.div>
+      )}
 
       {/* Charts */}
       <Grid container spacing={3} sx={{ mb: 4 }}>

@@ -114,6 +114,7 @@ export default function ProductsPage() {
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.products.toggleActive(id),
+    meta: { successMsg: t('products.updated') || 'Product updated' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
@@ -121,6 +122,7 @@ export default function ProductsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.products.deleteProduct(id),
+    meta: { successMsg: t('products.deleted') || 'Product deleted' },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setDeleteTarget(null);
@@ -212,8 +214,8 @@ export default function ProductsPage() {
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Chip
-            label={categoryFilter ? categories?.data?.find((c) => c.id === categoryFilter)?.nameAr || categoryFilter : t('common.category')}
-            onClick={() => setCategoryFilter(categoryFilter ? null : (categories?.data?.[0]?.id || null))}
+            label={categoryFilter ? categories?.find((c) => c.id === categoryFilter)?.nameAr || categoryFilter : t('common.category')}
+            onClick={() => setCategoryFilter(categoryFilter ? null : (categories?.[0]?.id || null))}
             onDelete={categoryFilter ? () => setCategoryFilter(null) : undefined}
             variant={categoryFilter ? 'filled' : 'outlined'}
             color={categoryFilter ? 'primary' : 'default'}

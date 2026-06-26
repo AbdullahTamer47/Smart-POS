@@ -426,9 +426,9 @@ export default function ProductFormPage() {
                     control={control}
                     render={({ field }) => (
                       <Autocomplete
-                        value={categories?.data?.find((c) => c.id === field.value) || null}
+                        value={categories?.find((c) => c.id === field.value) || null}
                         onChange={(_, val) => field.onChange(val?.id || null)}
-                        options={categories?.data || []}
+                        options={categories || []}
                         getOptionLabel={(opt) => opt.nameAr || opt.nameEn || opt.name}
                         renderInput={(params) => (
                           <TextField {...params} label={t('common.category')} />
@@ -452,7 +452,7 @@ export default function ProductFormPage() {
                           <Button
                             size="small"
                             onClick={() => {
-                              const cat = categories?.data?.find(
+                              const cat = categories?.find(
                                 (c) => c.id === watch('categoryId')
                               );
                               setValue('sku', generateSku(cat?.nameAr || cat?.nameEn));
@@ -659,7 +659,7 @@ export default function ProductFormPage() {
                       size="small"
                       startIcon={<AddIcon />}
                       onClick={() => {
-                        const firstPl = priceLists?.data?.[0];
+                        const firstPl = priceLists?.[0];
                         if (firstPl) {
                           appendPriceOverride({
                             priceListId: firstPl.id,
@@ -686,9 +686,9 @@ export default function ProductFormPage() {
                             render={({ field: f }) => (
                               <Autocomplete
                                 size="small"
-                                value={priceLists?.data?.find((pl) => pl.id === f.value) || null}
+                                value={priceLists?.find((pl) => pl.id === f.value) || null}
                                 onChange={(_, val) => f.onChange(val?.id || '')}
-                                options={priceLists?.data || []}
+                                options={priceLists || []}
                                 getOptionLabel={(opt) => opt.nameAr || opt.nameEn || opt.name}
                                 renderInput={(params) => (
                                   <TextField {...params} size="small" sx={{ minWidth: 200 }} />

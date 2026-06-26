@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache, MutationCache } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { RouterProvider } from 'react-router-dom';
+import { Toaster, toast } from 'react-hot-toast';
 import { ThemeContextProvider } from './theme/ThemeProvider';
 import { router } from './router';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -9,7 +10,40 @@ import { SnackbarProvider } from './components/SnackbarProvider';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Box, CircularProgress, Typography } from '@mui/material';
 
+type ApiError = Error & { status?: number };
+
+function handleApiError(error: unknown): void {
+  const err = error as ApiError;
+  if (err?.status === 401) {
+    return;
+  }
+  const message = err?.message || 'An unexpected error occurred';
+  toast.error(message);
+}
+
+type MutationMeta = { successMsg?: string; silent?: boolean };
+
+function handleMutationSuccess(
+  _data: unknown,
+  _variables: unknown,
+  _context: unknown,
+  mutation: { options?: { meta?: MutationMeta } },
+): void {
+  const meta = mutation?.options?.meta;
+  if (!meta || meta.silent || !meta.successMsg) {
+    return;
+  }
+  toast.success(meta.successMsg);
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: handleApiError,
+  }),
+  mutationCache: new MutationCache({
+    onError: handleApiError,
+    onSuccess: handleMutationSuccess,
+  }),
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,
@@ -53,6 +87,23 @@ export function App() {
               <RouterProvider router={router} />
             </Suspense>
           </ErrorBoundary>
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                borderRadius: '12px',
+                fontWeight: 500,
+              },
+              success: {
+                iconTheme: { primary: '#4CAF50', secondary: '#fff' },
+              },
+              error: {
+                duration: 6000,
+                iconTheme: { primary: '#F44336', secondary: '#fff' },
+              },
+            }}
+          />
         </SnackbarProvider>
       </ThemeContextProvider>
       {import.meta.env.DEV && <ReactQueryDevtools position="right" />}

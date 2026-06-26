@@ -4,6 +4,7 @@ import {
   Get,
   Put,
   Body,
+  Headers,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -29,6 +30,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Setup2FADto } from './dto/setup-2fa.dto';
 import { Verify2FADto } from './dto/verify-2fa.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -77,8 +79,13 @@ export class AuthController {
   logout(
     @CurrentUser() user: CurrentUserPayload,
     @Body('refreshToken') refreshToken: string,
+    @Headers('authorization') authorization?: string,
   ) {
-    return this.authService.logout(user.id, refreshToken);
+    const accessToken =
+      authorization && authorization.startsWith('Bearer ')
+        ? authorization.slice(7)
+        : '';
+    return this.authService.logout(user.id, refreshToken, accessToken);
   }
 
   @Get('me')
@@ -160,5 +167,24 @@ export class AuthController {
   @ApiResponse({ status: 400, description: '2FA not enabled' })
   disable2FA(@CurrentUser() user: CurrentUserPayload) {
     return this.authService.disable2FA(user.id);
+  }
+
+  @Post('send-verification-email')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Send email verification link' })
+  @ApiResponse({ status: 200, description: 'Verification email sent' })
+  sendEmailVerification(@CurrentUser() user: CurrentUserPayload) {
+    return this.authService.sendEmailVerification(user.id);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify email with token' })
+  @ApiResponse({ status: 200, description: 'Email verified' })
+  @ApiResponse({ status: 400, description: 'Invalid token' })
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto.token);
   }
 }

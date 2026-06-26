@@ -13,6 +13,7 @@ import * as bcrypt from 'bcryptjs';
 import * as speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
 import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { RegisterDto } from './dto/register.dto';
@@ -237,12 +238,44 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(userId: string, refreshToken: string): Promise<MessageResponse> {
+  async logout(
+    userId: string,
+    refreshToken: string,
+    accessToken?: string,
+  ): Promise<MessageResponse> {
     if (refreshToken) {
       await this.prisma.refreshToken.updateMany({
         where: { userId, token: refreshToken },
         data: { isRevoked: true },
       });
+    }
+
+    if (accessToken) {
+      try {
+        const decoded = this.jwtService.decode(accessToken) as
+          | { exp?: number }
+          | null
+          | string;
+        const exp =
+          decoded && typeof decoded === 'object' ? decoded.exp : undefined;
+        if (exp) {
+          const ttl = exp - Math.floor(Date.now() / 1000);
+          if (ttl > 0) {
+            const tokenHash = createHash('sha256')
+              .update(accessToken)
+              .digest('hex');
+            await this.redisService.set(
+              `blacklist:at:${tokenHash}`,
+              '1',
+              ttl,
+            );
+          }
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Failed to blocklist access token: ${(err as Error).message}`,
+        );
+      }
     }
 
     return { message: 'Logged out successfully' };
@@ -491,6 +524,74 @@ export class AuthService {
     await this.redisService.del(`2fa-recovery:${userId}`);
 
     return { message: '2FA disabled successfully' };
+  }
+
+  async sendEmailVerification(userId: string): Promise<MessageResponse> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const verifyToken = this.jwtService.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        purpose: 'email-verification',
+      },
+      {
+        secret: this.configService.get<string>('app.jwt.accessSecret'),
+        expiresIn: '24h',
+      },
+    );
+
+    await this.redisService.set(
+      `email-verify:${user.id}`,
+      verifyToken,
+      86400,
+    );
+
+    this.logger.log(`Email verification token for ${user.email}: ${verifyToken}`);
+
+    return { message: 'Verification email sent' };
+  }
+
+  async verifyEmail(token: string): Promise<MessageResponse> {
+    let payload: JwtPayload & { purpose: string };
+
+    try {
+      payload = this.jwtService.verify<JwtPayload & { purpose: string }>(token, {
+        secret: this.configService.get<string>('app.jwt.accessSecret'),
+      });
+    } catch {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    if (payload.purpose !== 'email-verification') {
+      throw new BadRequestException('Invalid token purpose');
+    }
+
+    const storedToken = await this.redisService.get(`email-verify:${payload.sub}`);
+
+    if (!storedToken || storedToken !== token) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.redisService.del(`email-verify:${user.id}`);
+
+    this.logger.log(`Email verified for user ${user.email}`);
+
+    return { message: 'Email verified successfully' };
   }
 
   async generateTokens(user: {

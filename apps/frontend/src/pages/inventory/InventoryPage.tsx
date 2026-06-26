@@ -91,9 +91,9 @@ export default function InventoryPage() {
     staleTime: 10 * 60 * 1000,
   });
 
-  const { data: alerts } = useQuery<PaginatedResponse<StockAlert>>({
+  const { data: alerts } = useQuery<StockAlert[]>({
     queryKey: ['inventory', 'alerts'],
-    queryFn: () => api.inventory.getAlerts({ limit: 100 }),
+    queryFn: () => api.inventory.getAlerts(),
   });
 
   const adjustMutation = useMutation({
@@ -132,7 +132,7 @@ export default function InventoryPage() {
     setTransferDialogOpen(true);
   };
 
-  const alertItems = alerts?.data || [];
+  const alertItems = alerts || [];
 
   const columns: { id: SortField; label: string }[] = [
     { id: 'productName', label: t('pos.productName') },
