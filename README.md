@@ -1,13 +1,20 @@
 # Smart POS | نظام نقاط البيع الذكي
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)]()
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
+<p align="center">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=for-the-badge" alt="PRs Welcome">
+  <img src="https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React">
+  <img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+</p>
 
-نظام نقاط بيع متكامل متعدد المستأجرين مع دعم كامل للغة العربية والإنجليزية، إدارة المخزون، المحاسبة، والتقارير.
+**نظام نقاط بيع متكامل متعدد المستأجرين** مع دعم كامل للغة العربية والإنجليزية، إدارة المخزون، المحاسبة، والتقارير. بواجهة أمامية حديثة (React 19 + MUI 7) ونظام خلفي قوي (NestJS + PostgreSQL).
 
-A comprehensive multi-tenant Point of Sale system with full Arabic and English support, inventory management, accounting, and reporting.
+A comprehensive **multi-tenant Point of Sale system** with full Arabic/English support, real-time inventory management, accounting, and reporting. Built with a modern stack: React 19, MUI 7, NestJS, PostgreSQL, Redis, and more.
+
+> **Live Demo** — [Smart POS](https://github.com/AbdullahTamer47/Smart-POS)  
+> **V2 Repository** — [Smart POS v2](https://github.com/AbdullahTamer47/Smart-POS-v2)
 
 ---
 
@@ -55,8 +62,8 @@ A comprehensive multi-tenant Point of Sale system with full Arabic and English s
 ## Quick Start | بداية سريعة
 
 ```bash
-git clone https://github.com/your-org/smart-pos-next.git
-cd smart-pos-next
+git clone https://github.com/AbdullahTamer47/Smart-POS.git
+cd Smart-POS
 
 cp .env.example .env
 
@@ -79,8 +86,8 @@ The application will be available at:
 ### 1. Clone and Install
 
 ```bash
-git clone https://github.com/your-org/smart-pos-next.git
-cd smart-pos-next
+git clone https://github.com/AbdullahTamer47/Smart-POS.git
+cd Smart-POS
 pnpm install
 ```
 
@@ -122,7 +129,6 @@ This starts all applications in development mode using Turborepo.
 ## Project Structure | هيكل المشروع
 
 ```
-smart-pos-next/
 ├── apps/
 │   ├── frontend/          # React frontend application
 │   │   ├── public/        # Static assets (manifest, service worker, icons)
@@ -140,7 +146,8 @@ smart-pos-next/
 │   │   ├── Dockerfile
 │   │   ├── nginx.conf
 │   │   └── package.json
-│   └── api/               # NestJS backend application
+│   └── backend/           # NestJS backend application
+│       ├── prisma/        # Database schema & migrations
 │       ├── src/
 │       │   ├── modules/   # Feature modules
 │       │   ├── common/    # Shared utilities
@@ -156,6 +163,7 @@ smart-pos-next/
 │   ├── grafana/           # Grafana dashboards
 │   ├── prometheus/        # Prometheus config
 │   └── pgbouncer/         # PgBouncer config
+├── .github/               # GitHub Actions workflows
 ├── docker-compose.yml     # Main services orchestration
 ├── turbo.json             # Turborepo configuration
 ├── pnpm-workspace.yaml    # pnpm workspace config
@@ -190,7 +198,7 @@ smart-pos-next/
 | `pnpm run test` | Run Vitest tests |
 | `pnpm run test:e2e` | Run Playwright E2E tests |
 
-### Backend (`apps/api`)
+### Backend (`apps/backend`)
 
 | Command | Description |
 |---------|-------------|
@@ -282,16 +290,18 @@ pnpm run build
 ### Production Build (Backend)
 
 ```bash
-cd apps/api
+cd apps/backend
 pnpm run build
 
-# Output is in apps/api/dist
+# Output is in apps/backend/dist
 # Start with: node dist/main.js
 ```
 
-### Kubernetes
+### Monitoring
 
-Example Kubernetes manifests are available in the `k8s/` directory (coming soon).
+- **Prometheus** — Metrics collection (`docker/prometheus/prometheus.yml`)
+- **Grafana** — Dashboards & visualization (`docker/grafana/`)
+- **PgBouncer** — Database connection pooling (`docker/pgbouncer/`)
 
 ---
 
@@ -373,8 +383,8 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 
 ## Support | الدعم
 
-For issues and feature requests, please use the [GitHub Issues](https://github.com/your-org/smart-pos-next/issues) page.
+For issues and feature requests, please use the [GitHub Issues](https://github.com/AbdullahTamer47/Smart-POS/issues) page.
 
 ---
 
-Made with by the Smart POS Team
+Made with ❤️ by AbdullahTamer47
